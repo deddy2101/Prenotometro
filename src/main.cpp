@@ -28,6 +28,79 @@ void IRAM_ATTR buttonISR() {
     buttonFlag = true;
 }
 
+// ==================== CHARGING STATE ====================
+enum ChargeState {
+    CHARGE_NONE,        // Non in ricarica (batteria)
+    CHARGE_CHARGING,    // In carica (verde lampeggia)
+    CHARGE_COMPLETE     // Carica completa (verde fisso)
+};
+
+ChargeState chargeState = CHARGE_NONE;
+unsigned long lastChargeSample = 0;
+uint8_t greenHighCount = 0;     // Quante volte il verde è HIGH negli ultimi campioni
+uint8_t chargeSampleIndex = 0;  // Indice campione corrente
+bool wasCharging = false;        // Per rilevare transizione carica → non carica
+
+// Aggiorna lo stato di ricarica (non bloccante, da chiamare nel loop)
+// Ritorna true se siamo in ricarica (il gioco non deve girare)
+bool updateChargeState() {
+    unsigned long now = millis();
+
+    if (now - lastChargeSample < CHARGE_SAMPLE_INTERVAL_MS) {
+        return chargeState != CHARGE_NONE;
+    }
+    lastChargeSample = now;
+
+    bool greenHigh = digitalRead(CHARGE_PIN_GREEN) == HIGH;
+    bool blueHigh = digitalRead(CHARGE_PIN_BLUE) == HIGH;
+
+    // Aggiorna contatore campioni verde
+    if (chargeSampleIndex < CHARGE_SAMPLE_COUNT) {
+        if (greenHigh) greenHighCount++;
+        chargeSampleIndex++;
+    } else {
+        // Finestra di campionamento completata, determina stato
+        ChargeState newState;
+
+        if (greenHighCount == 0) {
+            // Verde mai alto → non in ricarica
+            newState = CHARGE_NONE;
+        } else if (greenHighCount >= CHARGE_SAMPLE_COUNT) {
+            // Verde sempre alto → carica completa
+            newState = CHARGE_COMPLETE;
+        } else {
+            // Verde a volte alto → lampeggia → in carica
+            newState = CHARGE_CHARGING;
+        }
+
+        if (newState != chargeState) {
+            chargeState = newState;
+            switch (chargeState) {
+                case CHARGE_NONE:
+                    Log.info("Charge: disconnected");
+                    break;
+                case CHARGE_CHARGING:
+                    Log.info("Charge: charging...");
+                    break;
+                case CHARGE_COMPLETE:
+                    Log.info("Charge: complete!");
+                    break;
+            }
+        }
+
+        // Reset finestra
+        greenHighCount = 0;
+        chargeSampleIndex = 0;
+    }
+
+    return chargeState != CHARGE_NONE;
+}
+
+void initChargePins() {
+    pinMode(CHARGE_PIN_GREEN, INPUT);
+    pinMode(CHARGE_PIN_BLUE, INPUT);
+}
+
 #ifdef TEST_MODE
 // ==================== TEST MODE ====================
 
@@ -70,6 +143,9 @@ void setup() {
     pinMode(BUTTON_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
 
+    // Inizializza pin ricarica
+    initChargePins();
+
     // 3 lampeggi verdi veloci
     for (int i = 0; i < 3; i++) {
         leds.setColor(COLOR_GREEN);
@@ -82,6 +158,17 @@ void setup() {
 }
 
 void loop() {
+    // Controlla stato ricarica
+    if (updateChargeState()) {
+        if (chargeState == CHARGE_CHARGING) {
+            leds.spinner(COLOR_GREEN, 80);
+        } else if (chargeState == CHARGE_COMPLETE) {
+            leds.blink(COLOR_GREEN, 500);
+        }
+        delay(10);
+        return;  // Non eseguire logica test durante la ricarica
+    }
+
     if (buttonFlag) {
         buttonFlag = false;
         unsigned long now = millis();
@@ -159,6 +246,10 @@ void setup() {
     pinMode(BUTTON_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
 
+    // Inizializza pin ricarica
+    Log.info("Initializing charge pins...");
+    initChargePins();
+
     // Inizializza ESP-NOW
     Log.info("Initializing ESP-NOW...");
     if (!espNow.begin()) {
@@ -187,6 +278,17 @@ void setup() {
 
 // ==================== LOOP ====================
 void loop() {
+    // Controlla stato ricarica
+    if (updateChargeState()) {
+        if (chargeState == CHARGE_CHARGING) {
+            leds.spinner(COLOR_GREEN, 80);
+        } else if (chargeState == CHARGE_COMPLETE) {
+            leds.blink(COLOR_GREEN, 500);
+        }
+        delay(10);
+        return;  // Non eseguire logica gioco durante la ricarica
+    }
+
     // Gestisci pressione pulsante
     if (buttonFlag) {
         buttonFlag = false;

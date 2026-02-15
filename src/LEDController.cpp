@@ -79,6 +79,44 @@ void LEDController::cycleColors(uint32_t* colors, uint8_t numColors, uint16_t in
     }
 }
 
+// Effetto spinner circolare (un LED alla volta che gira)
+void LEDController::spinner(uint32_t color, uint16_t speedMs) {
+    unsigned long now = millis();
+    if (now - lastUpdate >= speedMs) {
+        lastUpdate = now;
+        animationStep = (animationStep + 1) % numLeds;
+
+        strip->clear();
+        strip->setPixelColor(animationStep, color);
+        // Scia tenue sui 2 LED precedenti
+        uint8_t r = (color >> 16) & 0xFF;
+        uint8_t g = (color >> 8) & 0xFF;
+        uint8_t b = color & 0xFF;
+        strip->setPixelColor((animationStep - 1 + numLeds) % numLeds,
+                             strip->Color(r / 4, g / 4, b / 4));
+        strip->setPixelColor((animationStep - 2 + numLeds) % numLeds,
+                             strip->Color(r / 16, g / 16, b / 16));
+        strip->show();
+    }
+}
+
+// Effetto lampeggio di tutti i LED
+void LEDController::blink(uint32_t color, uint16_t intervalMs) {
+    unsigned long now = millis();
+    if (now - lastUpdate >= intervalMs) {
+        lastUpdate = now;
+        animationStep = !animationStep;
+
+        if (animationStep) {
+            strip->setBrightness(255);
+            setColor(color);
+        } else {
+            strip->setBrightness(255);
+            setColor(0x000000);
+        }
+    }
+}
+
 uint32_t LEDController::getColor(uint8_t r, uint8_t g, uint8_t b) {
     return strip->Color(r, g, b);
 }

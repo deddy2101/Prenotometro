@@ -20,6 +20,8 @@ public:
     void pulse(uint32_t color, uint16_t duration);
     void rainbow(uint16_t duration);
     void cycleColors(uint32_t* colors, uint8_t numColors, uint16_t intervalMs);
+    void spinner(uint32_t color, uint16_t speedMs);
+    void blink(uint32_t color, uint16_t intervalMs);
 
     // Utility
     uint32_t getColor(uint8_t r, uint8_t g, uint8_t b);

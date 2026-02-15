@@ -24,6 +24,14 @@
 #define NUM_LEDS 14      // Numero di LED WS2812B
 #endif
 
+// Pin lettura stato ricarica (dal modulo caricabatterie)
+#ifndef CHARGE_PIN_GREEN
+#define CHARGE_PIN_GREEN 5   // LED verde caricatore (HIGH = in carica o completa)
+#endif
+
+#ifndef CHARGE_PIN_BLUE
+#define CHARGE_PIN_BLUE 6    // LED blu caricatore (HIGH = scarica con carico)
+#endif
 
 // ==================== COLORI ====================
 #define COLOR_OFF       0x000000  // Spento
@@ -85,5 +93,7 @@ enum GameState {
 #define CONNECT_RETRY_MS 2000         // Retry connessione slave ogni 2s
 #define HEARTBEAT_INTERVAL_MS 3000    // Heartbeat slave ogni 3s
 #define HEARTBEAT_TIMEOUT_MS 10000    // Slave disconnesso se nessun heartbeat per 10s
+#define CHARGE_SAMPLE_INTERVAL_MS 100 // Campionamento pin ricarica ogni 100ms
+#define CHARGE_SAMPLE_COUNT 10        // Numero campioni per decidere stato (1s di finestra)
 
 #endif // CONFIG_H
