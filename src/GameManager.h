@@ -38,8 +38,13 @@ private:
     uint8_t winnerSlaveId;
     unsigned long gameStartTime;
 
+    // Master specific - heartbeat
+    unsigned long lastHeartbeatReceived[MAX_SLAVES];
+
     // Slave specific
     bool isConnected;
+    unsigned long lastConnectRetry;
+    unsigned long lastHeartbeatSent;
 
     // Button debounce
     bool buttonPressed;
@@ -54,11 +59,14 @@ private:
     void handleButtonPressedFromSlave(const Message& msg);
     void startGame();
     void announceWinner(uint8_t slaveId);
+    void checkHeartbeats();
+    void removeConnectedSlave(uint8_t id);
 
     // Metodi privati Slave
     void updateSlave();
     void sendConnectRequest();
     void sendButtonPressed();
+    void sendHeartbeat();
 
     // Utility
     bool isSlaveConnected(uint8_t id);

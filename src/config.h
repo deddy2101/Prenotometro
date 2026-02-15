@@ -55,7 +55,8 @@ enum MessageType {
     MSG_CONNECT_ACK = 0x02,       // Master -> Slave: conferma connessione
     MSG_START_GAME = 0x03,        // Master -> All: avvia gioco
     MSG_BUTTON_PRESSED = 0x04,    // Slave -> Master: pulsante premuto
-    MSG_WINNER_ANNOUNCE = 0x05    // Master -> All: annuncio vincitore
+    MSG_WINNER_ANNOUNCE = 0x05,   // Master -> All: annuncio vincitore
+    MSG_HEARTBEAT = 0x06          // Slave -> Master: keepalive
 };
 
 // Struttura messaggio ESP-NOW
@@ -80,6 +81,8 @@ enum GameState {
 #define BUTTON_DEBOUNCE_MS 50         // Debounce pulsante
 #define CONNECTION_CYCLE_MS 500       // Ciclo animazione connessione
 #define GAME_START_DELAY_MS 3000      // Delay prima di start game
-// WINNER_DISPLAY_MS rimosso: il master deve premere il pulsante per ripartire
+#define CONNECT_RETRY_MS 2000         // Retry connessione slave ogni 2s
+#define HEARTBEAT_INTERVAL_MS 3000    // Heartbeat slave ogni 3s
+#define HEARTBEAT_TIMEOUT_MS 10000    // Slave disconnesso se nessun heartbeat per 10s
 
 #endif // CONFIG_H

@@ -9,12 +9,15 @@ GameManager::GameManager(LEDController& ledController, ESPNowManager& espNowMana
     winnerSlaveId = 0xFF;
     gameStartTime = 0;
     isConnected = false;
+    lastConnectRetry = 0;
+    lastHeartbeatSent = 0;
     buttonPressed = false;
     lastButtonPress = 0;
     lastAnimationUpdate = 0;
 
     for (uint8_t i = 0; i < MAX_SLAVES; i++) {
         connectedSlaves[i] = 0xFF;
+        lastHeartbeatReceived[i] = 0;
     }
 }
 
@@ -54,6 +57,11 @@ void GameManager::setState(GameState newState) {
 // ==================== MASTER LOGIC ====================
 
 void GameManager::updateMaster() {
+    // Controlla heartbeat in tutti gli stati (tranne WAITING_CONNECTIONS)
+    if (currentState != STATE_WAITING_CONNECTIONS && numConnected > 0) {
+        checkHeartbeats();
+    }
+
     switch (currentState) {
         case STATE_WAITING_CONNECTIONS:
             // Anima LED ciclando tra i colori degli slave connessi
@@ -94,6 +102,20 @@ void GameManager::updateMaster() {
 }
 
 void GameManager::updateSlave() {
+    unsigned long now = millis();
+
+    // Retry connessione se non connesso
+    if (!isConnected && (now - lastConnectRetry >= CONNECT_RETRY_MS)) {
+        lastConnectRetry = now;
+        sendConnectRequest();
+    }
+
+    // Invia heartbeat periodico se connesso
+    if (isConnected && (now - lastHeartbeatSent >= HEARTBEAT_INTERVAL_MS)) {
+        lastHeartbeatSent = now;
+        sendHeartbeat();
+    }
+
     switch (currentState) {
         case STATE_WAITING_START:
             // Anima LED con il proprio colore
@@ -158,6 +180,13 @@ void GameManager::handleMessage(const Message& msg, const uint8_t* macAddr) {
             }
             break;
 
+        case MSG_HEARTBEAT:
+            if (isMaster && msg.slaveId < MAX_SLAVES) {
+                lastHeartbeatReceived[msg.slaveId] = millis();
+                Log.debug("Heartbeat from Slave %d", msg.slaveId);
+            }
+            break;
+
         default:
             Log.warn("Unknown message type: 0x%02X", msg.type);
             break;
@@ -203,17 +232,20 @@ void GameManager::handleConnectRequest(const Message& msg, const uint8_t* macAdd
 
     if (!isSlaveConnected(slaveId)) {
         addConnectedSlave(slaveId, macAddr);
-
-        // Invia ACK
-        Message ackMsg;
-        ackMsg.type = MSG_CONNECT_ACK;
-        ackMsg.slaveId = slaveId;
-        ackMsg.data = 0;
-        ackMsg.timestamp = millis();
-
-        espNow.addPeer(macAddr);
-        espNow.sendMessage(ackMsg, macAddr);
     }
+
+    // Aggiorna heartbeat (anche se già connesso, per gestire riconnessioni)
+    lastHeartbeatReceived[slaveId] = millis();
+
+    // Invia sempre ACK (lo slave potrebbe non aver ricevuto il precedente)
+    Message ackMsg;
+    ackMsg.type = MSG_CONNECT_ACK;
+    ackMsg.slaveId = slaveId;
+    ackMsg.data = 0;
+    ackMsg.timestamp = millis();
+
+    espNow.addPeer(macAddr);
+    espNow.sendMessage(ackMsg, macAddr);
 }
 
 void GameManager::handleButtonPressedFromSlave(const Message& msg) {
@@ -288,6 +320,54 @@ void GameManager::sendButtonPressed() {
     // Cambio stato locale (ottimistico)
     setState(STATE_WINNER_ANNOUNCED);
     winnerSlaveId = slaveId;
+}
+
+void GameManager::sendHeartbeat() {
+    Message msg;
+    msg.type = MSG_HEARTBEAT;
+    msg.slaveId = slaveId;
+    msg.data = 0;
+    msg.timestamp = millis();
+
+    espNow.sendMessage(msg);
+}
+
+void GameManager::checkHeartbeats() {
+    unsigned long now = millis();
+
+    for (uint8_t i = 0; i < numConnected; i++) {
+        uint8_t id = connectedSlaves[i];
+        if (id < MAX_SLAVES && lastHeartbeatReceived[id] > 0 &&
+            (now - lastHeartbeatReceived[id] > HEARTBEAT_TIMEOUT_MS)) {
+
+            Log.warn("Slave %d disconnected! (no heartbeat for %ds)",
+                     id, HEARTBEAT_TIMEOUT_MS / 1000);
+            removeConnectedSlave(id);
+
+            // Annulla round e torna ad aspettare connessioni
+            setState(STATE_WAITING_CONNECTIONS);
+            leds.setColor(COLOR_OFF);
+            Log.info("Round cancelled. Waiting for all slaves to reconnect...");
+            return;  // Esci, l'array è stato modificato
+        }
+    }
+}
+
+void GameManager::removeConnectedSlave(uint8_t id) {
+    for (uint8_t i = 0; i < numConnected; i++) {
+        if (connectedSlaves[i] == id) {
+            // Shifta gli elementi rimanenti
+            for (uint8_t j = i; j < numConnected - 1; j++) {
+                connectedSlaves[j] = connectedSlaves[j + 1];
+                memcpy(slaveMacs[j], slaveMacs[j + 1], 6);
+            }
+            connectedSlaves[numConnected - 1] = 0xFF;
+            numConnected--;
+            lastHeartbeatReceived[id] = 0;
+            Log.info("Slave %d removed. Total: %d/%d", id, numConnected, MAX_SLAVES);
+            return;
+        }
+    }
 }
 
 // ==================== UTILITY ====================
