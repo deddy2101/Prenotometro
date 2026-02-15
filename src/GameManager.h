@@ -68,6 +68,9 @@ private:
     void sendButtonPressed();
     void sendHeartbeat();
 
+    // Falsa partenza
+    void falseStartFlash();
+
     // Utility
     bool isSlaveConnected(uint8_t id);
     void addConnectedSlave(uint8_t id, const uint8_t* macAddr);

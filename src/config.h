@@ -56,7 +56,8 @@ enum MessageType {
     MSG_START_GAME = 0x03,        // Master -> All: avvia gioco
     MSG_BUTTON_PRESSED = 0x04,    // Slave -> Master: pulsante premuto
     MSG_WINNER_ANNOUNCE = 0x05,   // Master -> All: annuncio vincitore
-    MSG_HEARTBEAT = 0x06          // Slave -> Master: keepalive
+    MSG_HEARTBEAT = 0x06,         // Slave -> Master: keepalive
+    MSG_FALSE_START = 0x07        // Falsa partenza: qualcuno ha premuto troppo presto
 };
 
 // Struttura messaggio ESP-NOW

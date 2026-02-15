@@ -1,6 +1,9 @@
 #include "GameManager.h"
 #include "Logger.h"
 
+// Flag pulsante definito in main.cpp, serve per pulirlo al game start
+extern volatile bool buttonFlag;
+
 GameManager::GameManager(LEDController& ledController, ESPNowManager& espNowManager, bool isMaster, uint8_t slaveId)
     : leds(ledController), espNow(espNowManager), isMaster(isMaster), slaveId(slaveId) {
 
@@ -162,6 +165,7 @@ void GameManager::handleMessage(const Message& msg, const uint8_t* macAddr) {
         case MSG_START_GAME:
             if (!isMaster) {
                 Log.info("Game started by Master!");
+                buttonFlag = false;  // Scarta eventuali pressioni precedenti
                 setState(STATE_GAME_RUNNING);
             }
             break;
@@ -185,6 +189,21 @@ void GameManager::handleMessage(const Message& msg, const uint8_t* macAddr) {
                 lastHeartbeatReceived[msg.slaveId] = millis();
                 Log.debug("Heartbeat from Slave %d", msg.slaveId);
             }
+            break;
+
+        case MSG_FALSE_START:
+            if (isMaster) {
+                // Ritrasmetti a tutti gli slave
+                Log.warn("False start from Slave %d!", msg.slaveId);
+                Message fsMsg;
+                fsMsg.type = MSG_FALSE_START;
+                fsMsg.slaveId = msg.slaveId;
+                fsMsg.data = 0;
+                fsMsg.timestamp = millis();
+                espNow.sendMessage(fsMsg);
+            }
+            // Tutti (master e slave) fanno il lampeggio rosso
+            falseStartFlash();
             break;
 
         default:
@@ -219,6 +238,16 @@ void GameManager::handleButtonPress() {
         // Slave: invia messaggio al master se gioco in corso
         if (currentState == STATE_GAME_RUNNING) {
             sendButtonPressed();
+        } else if (currentState == STATE_WAITING_START && isConnected) {
+            // Falsa partenza! Notifica il master
+            Log.warn("False start! Button pressed before game start.");
+            Message fsMsg;
+            fsMsg.type = MSG_FALSE_START;
+            fsMsg.slaveId = slaveId;
+            fsMsg.data = 0;
+            fsMsg.timestamp = millis();
+            espNow.sendMessage(fsMsg);
+            falseStartFlash();
         }
     }
 }
@@ -368,6 +397,17 @@ void GameManager::removeConnectedSlave(uint8_t id) {
             return;
         }
     }
+}
+
+void GameManager::falseStartFlash() {
+    // 3 lampeggi rossi veloci
+    for (int i = 0; i < 3; i++) {
+        leds.setColor(COLOR_RED);
+        delay(200);
+        leds.setColor(COLOR_OFF);
+        delay(200);
+    }
+    buttonFlag = false;  // Pulisci eventuali pressioni durante il flash
 }
 
 // ==================== UTILITY ====================
