@@ -17,12 +17,13 @@
 #endif
 
 #ifndef BUTTON_PIN
-#define BUTTON_PIN 0    // GPIO per pulsante
+#define BUTTON_PIN 33    // GPIO per pulsante
 #endif
 
 #ifndef NUM_LEDS
-#define NUM_LEDS 8      // Numero di LED WS2812B
+#define NUM_LEDS 14      // Numero di LED WS2812B
 #endif
+
 
 // ==================== COLORI ====================
 #define COLOR_OFF       0x000000  // Spento
