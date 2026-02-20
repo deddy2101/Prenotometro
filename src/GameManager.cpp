@@ -14,6 +14,7 @@ GameManager::GameManager(LEDController& ledController, ESPNowManager& espNowMana
     isConnected = false;
     lastConnectRetry = 0;
     lastHeartbeatSent = 0;
+    lastMasterMessage = 0;
     buttonPressed = false;
     lastButtonPress = 0;
     lastAnimationUpdate = 0;
@@ -69,7 +70,11 @@ void GameManager::updateMaster() {
         case STATE_WAITING_CONNECTIONS:
             // Anima LED ciclando tra i colori degli slave connessi
             if (numConnected > 0) {
-                leds.cycleColors((uint32_t*)SLAVE_COLORS, numConnected, CONNECTION_CYCLE_MS);
+                uint32_t connectedColors[MAX_SLAVES];
+                for (uint8_t i = 0; i < numConnected; i++) {
+                    connectedColors[i] = SLAVE_COLORS[connectedSlaves[i]];
+                }
+                leds.cycleColors(connectedColors, numConnected, CONNECTION_CYCLE_MS);
             } else {
                 // Nessuno connesso: effetto arcobaleno
                 leds.rainbow(2000);
@@ -106,6 +111,16 @@ void GameManager::updateMaster() {
 
 void GameManager::updateSlave() {
     unsigned long now = millis();
+
+    // Controlla se il master è ancora vivo (solo in WAITING_START)
+    if (isConnected && currentState == STATE_WAITING_START &&
+        lastMasterMessage > 0 &&
+        (now - lastMasterMessage > HEARTBEAT_TIMEOUT_MS)) {
+        Log.warn("Master timeout! Reconnecting...");
+        isConnected = false;
+        lastMasterMessage = 0;
+        lastConnectRetry = 0;  // Forza retry immediato
+    }
 
     // Retry connessione se non connesso
     if (!isConnected && (now - lastConnectRetry >= CONNECT_RETRY_MS)) {
@@ -159,12 +174,14 @@ void GameManager::handleMessage(const Message& msg, const uint8_t* macAddr) {
             if (!isMaster) {
                 Log.info("Connected to Master!");
                 isConnected = true;
+                lastMasterMessage = millis();
             }
             break;
 
         case MSG_START_GAME:
             if (!isMaster) {
                 Log.info("Game started by Master!");
+                lastMasterMessage = millis();
                 buttonFlag = false;  // Scarta eventuali pressioni precedenti
                 setState(STATE_GAME_RUNNING);
             }
@@ -179,6 +196,7 @@ void GameManager::handleMessage(const Message& msg, const uint8_t* macAddr) {
         case MSG_WINNER_ANNOUNCE:
             if (!isMaster) {
                 Log.info("Winner: Slave %d", msg.slaveId);
+                lastMasterMessage = millis();
                 winnerSlaveId = msg.slaveId;
                 setState(STATE_WINNER_ANNOUNCED);
             }

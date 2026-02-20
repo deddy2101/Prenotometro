@@ -25,6 +25,17 @@ bool ESPNowManager::begin() {
     esp_now_register_recv_cb(onDataRecv);
     esp_now_register_send_cb(onDataSent);
 
+    // Aggiungi broadcast come peer (necessario per inviare in broadcast)
+    esp_now_peer_info_t broadcastPeer = {};
+    memcpy(broadcastPeer.peer_addr, broadcastAddress, 6);
+    broadcastPeer.channel = ESP_NOW_CHANNEL;
+    broadcastPeer.encrypt = false;
+    if (esp_now_add_peer(&broadcastPeer) != ESP_OK) {
+        Log.error("Failed to add broadcast peer");
+        return false;
+    }
+    Log.info("Broadcast peer added");
+
     return true;
 }
 

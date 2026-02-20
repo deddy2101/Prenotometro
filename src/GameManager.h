@@ -45,6 +45,7 @@ private:
     bool isConnected;
     unsigned long lastConnectRetry;
     unsigned long lastHeartbeatSent;
+    unsigned long lastMasterMessage;  // Ultimo messaggio ricevuto dal master
 
     // Button debounce
     bool buttonPressed;

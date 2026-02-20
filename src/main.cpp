@@ -125,7 +125,8 @@ bool testRunning = false;
 
 void setup() {
     Serial.begin(115200);
-    delay(1000);
+    Serial.setTxTimeoutMs(0);  // Non bloccare se nessun terminale è aperto (USB CDC nativa)
+    delay(500);
 
     Log.begin(Serial, LOG_INFO);
 
@@ -211,7 +212,7 @@ void onMessageReceived(const Message& msg, const uint8_t* macAddr) {
 // ==================== SETUP ====================
 void setup() {
     Serial.begin(115200);
-    delay(1000);
+    delay(500);
 
     // Inizializza Logger
     Log.begin(Serial, LOG_INFO);  // LOG_DEBUG per più dettagli

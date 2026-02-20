@@ -5,11 +5,11 @@
 
 // ==================== CONFIGURAZIONE DISPOSITIVO ====================
 // Cambia questo valore per configurare Master o Slave
-#define IS_MASTER true  // true = Master, false = Slave
+#define IS_MASTER false  // true = Master, false = Slave
 
 // ID Slave (solo per slave, ignorato se IS_MASTER = true)
 // 0 = Giallo, 1 = Verde, 2 = Blu, 3 = Rosso
-#define SLAVE_ID 0
+#define SLAVE_ID 2
 
 // ==================== PIN CONFIGURATION ====================
 #ifndef LED_PIN
@@ -39,7 +39,7 @@
 #define COLOR_YELLOW    0xFFFF00  // Giallo (Slave 0)
 #define COLOR_LIME      0x00FF00  // Verde Lime (Slave 1)
 #define COLOR_BLUE      0x0000FF  // Blu (Slave 2)
-#define COLOR_RED       0xFF0000  // Rosso (Slave 3)
+#define COLOR_RED       0xFF2000  // Arancione rossastro (Slave 3)
 
 // Array di colori per gli slave
 const uint32_t SLAVE_COLORS[] = {
