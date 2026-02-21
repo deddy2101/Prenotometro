@@ -9,7 +9,7 @@
 
 // ID Slave (solo per slave, ignorato se IS_MASTER = true)
 // 0 = Giallo, 1 = Verde, 2 = Blu, 3 = Rosso
-#define SLAVE_ID 2
+#define SLAVE_ID 3
 
 // ==================== PIN CONFIGURATION ====================
 #ifndef LED_PIN
@@ -36,6 +36,7 @@
 // ==================== COLORI ====================
 #define COLOR_OFF       0x000000  // Spento
 #define COLOR_GREEN     0x00FF00  // Verde (gioco in corso)
+#define COLOR_PINK      0xFF0080  // Rosa (start game)
 #define COLOR_YELLOW    0xFFFF00  // Giallo (Slave 0)
 #define COLOR_LIME      0x00FF00  // Verde Lime (Slave 1)
 #define COLOR_BLUE      0x0000FF  // Blu (Slave 2)
@@ -65,7 +66,8 @@ enum MessageType {
     MSG_BUTTON_PRESSED = 0x04,    // Slave -> Master: pulsante premuto
     MSG_WINNER_ANNOUNCE = 0x05,   // Master -> All: annuncio vincitore
     MSG_HEARTBEAT = 0x06,         // Slave -> Master: keepalive
-    MSG_FALSE_START = 0x07        // Falsa partenza: qualcuno ha premuto troppo presto
+    MSG_FALSE_START = 0x07,       // Falsa partenza: qualcuno ha premuto troppo presto
+    MSG_MASTER_HEARTBEAT = 0x08   // Master -> All: keepalive durante il gioco
 };
 
 // Struttura messaggio ESP-NOW
@@ -91,8 +93,9 @@ enum GameState {
 #define CONNECTION_CYCLE_MS 500       // Ciclo animazione connessione
 #define GAME_START_DELAY_MS 3000      // Delay prima di start game
 #define CONNECT_RETRY_MS 2000         // Retry connessione slave ogni 2s
-#define HEARTBEAT_INTERVAL_MS 3000    // Heartbeat slave ogni 3s
-#define HEARTBEAT_TIMEOUT_MS 10000    // Slave disconnesso se nessun heartbeat per 10s
+#define HEARTBEAT_INTERVAL_MS 3000        // Heartbeat slave ogni 3s
+#define HEARTBEAT_TIMEOUT_MS 10000        // Slave disconnesso se nessun heartbeat per 10s
+#define MASTER_HEARTBEAT_INTERVAL_MS 2000 // Heartbeat master -> slave ogni 2s
 #define CHARGE_SAMPLE_INTERVAL_MS 100 // Campionamento pin ricarica ogni 100ms
 #define CHARGE_SAMPLE_COUNT 10        // Numero campioni per decidere stato (1s di finestra)
 

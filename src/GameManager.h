@@ -40,6 +40,7 @@ private:
 
     // Master specific - heartbeat
     unsigned long lastHeartbeatReceived[MAX_SLAVES];
+    unsigned long lastMasterHeartbeatSent;
 
     // Slave specific
     bool isConnected;
@@ -61,6 +62,7 @@ private:
     void startGame();
     void announceWinner(uint8_t slaveId);
     void checkHeartbeats();
+    void sendMasterHeartbeat();
     void removeConnectedSlave(uint8_t id);
 
     // Metodi privati Slave

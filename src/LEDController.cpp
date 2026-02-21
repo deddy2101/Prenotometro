@@ -15,6 +15,7 @@ void LEDController::begin() {
 }
 
 void LEDController::setColor(uint32_t color) {
+    strip->setBrightness(255);
     for (uint16_t i = 0; i < numLeds; i++) {
         strip->setPixelColor(i, color);
     }
@@ -61,6 +62,7 @@ void LEDController::rainbow(uint16_t duration) {
         lastUpdate = now;
         animationStep = (animationStep + 1) % 256;
 
+        strip->setBrightness(255);
         for (uint16_t i = 0; i < numLeds; i++) {
             uint16_t hue = ((i * 256 / numLeds) + animationStep) % 256;
             strip->setPixelColor(i, strip->ColorHSV(hue * 256));

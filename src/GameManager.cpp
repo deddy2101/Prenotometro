@@ -18,6 +18,7 @@ GameManager::GameManager(LEDController& ledController, ESPNowManager& espNowMana
     buttonPressed = false;
     lastButtonPress = 0;
     lastAnimationUpdate = 0;
+    lastMasterHeartbeatSent = 0;
 
     for (uint8_t i = 0; i < MAX_SLAVES; i++) {
         connectedSlaves[i] = 0xFF;
@@ -66,6 +67,15 @@ void GameManager::updateMaster() {
         checkHeartbeats();
     }
 
+    // Invia heartbeat agli slave durante il gioco
+    if (currentState == STATE_GAME_RUNNING || currentState == STATE_READY) {
+        unsigned long now = millis();
+        if (now - lastMasterHeartbeatSent >= MASTER_HEARTBEAT_INTERVAL_MS) {
+            lastMasterHeartbeatSent = now;
+            sendMasterHeartbeat();
+        }
+    }
+
     switch (currentState) {
         case STATE_WAITING_CONNECTIONS:
             // Anima LED ciclando tra i colori degli slave connessi
@@ -93,8 +103,8 @@ void GameManager::updateMaster() {
             break;
 
         case STATE_GAME_RUNNING:
-            // LED verdi durante il gioco
-            leds.setColor(COLOR_GREEN);
+            // LED rosa durante il gioco
+            leds.setColor(COLOR_PINK);
             break;
 
         case STATE_WINNER_ANNOUNCED:
@@ -112,14 +122,16 @@ void GameManager::updateMaster() {
 void GameManager::updateSlave() {
     unsigned long now = millis();
 
-    // Controlla se il master è ancora vivo (solo in WAITING_START)
-    if (isConnected && currentState == STATE_WAITING_START &&
+    // Controlla se il master è ancora vivo (WAITING_START e GAME_RUNNING)
+    if (isConnected &&
+        (currentState == STATE_WAITING_START || currentState == STATE_GAME_RUNNING) &&
         lastMasterMessage > 0 &&
         (now - lastMasterMessage > HEARTBEAT_TIMEOUT_MS)) {
         Log.warn("Master timeout! Reconnecting...");
         isConnected = false;
         lastMasterMessage = 0;
         lastConnectRetry = 0;  // Forza retry immediato
+        setState(STATE_WAITING_START);
     }
 
     // Retry connessione se non connesso
@@ -146,8 +158,8 @@ void GameManager::updateSlave() {
             break;
 
         case STATE_GAME_RUNNING:
-            // LED verdi, aspetta pressione pulsante
-            leds.setColor(COLOR_GREEN);
+            // LED rosa, aspetta pressione pulsante
+            leds.setColor(COLOR_PINK);
             break;
 
         case STATE_WINNER_ANNOUNCED:
@@ -206,6 +218,13 @@ void GameManager::handleMessage(const Message& msg, const uint8_t* macAddr) {
             if (isMaster && msg.slaveId < MAX_SLAVES) {
                 lastHeartbeatReceived[msg.slaveId] = millis();
                 Log.debug("Heartbeat from Slave %d", msg.slaveId);
+            }
+            break;
+
+        case MSG_MASTER_HEARTBEAT:
+            if (!isMaster) {
+                lastMasterMessage = millis();
+                Log.debug("Master heartbeat received");
             }
             break;
 
@@ -321,6 +340,15 @@ void GameManager::startGame() {
     msg.data = 0;
     msg.timestamp = millis();
 
+    espNow.sendMessage(msg);
+}
+
+void GameManager::sendMasterHeartbeat() {
+    Message msg;
+    msg.type = MSG_MASTER_HEARTBEAT;
+    msg.slaveId = 0xFF;
+    msg.data = 0;
+    msg.timestamp = millis();
     espNow.sendMessage(msg);
 }
 
